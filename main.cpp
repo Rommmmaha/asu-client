@@ -6,40 +6,70 @@ using namespace std;
 class element
 {
 public:
+    int type = 0;
+    // 0-text | 1-button | 2-image
+
     string name;
     Vector2 pos, size;
     Color c_text = WHITE, c_backgound = { 255,255,255,100 };
-    bool isButton = 0;
-    element(string _name, Vector2 _pos, Vector2 _size, bool _isButton)
+    Texture2D texture;
+
+    element(string _name, Vector2 _pos, Vector2 _size, int _type)
     {
         name = _name;
         pos = _pos;
         size = _size;
-        isButton = _isButton;
+        type = _type;
+        if (_type == 2) { _LoadTexture(); }
+    }
+    void _LoadTexture()
+    {
+        if (texture.id > 0)
+        {
+            UnloadTexture(texture);
+        }
+        texture = LoadTexture(name.c_str());
     }
 };
 class user_interface
 {
 public:
-    int menu = 0;
+    int layout = 1;
     Vector2 mouse;
     vector<vector<element>> layouts;
     /*
-        0   main_menu
-        1   play_menu
-        2   create_menu
+        0   nothing
+        1   main_menu
+        2   play_menu
+        3   create_menu
     */
     const int screen = GetCurrentMonitor(), screenWidth = GetMonitorWidth(screen), screenHeight = GetMonitorHeight(screen);
     int c_x(float a) const { return int(screenWidth / 100.0 * a); }
     int c_y(float a) const { return int(screenHeight / 100.0 * a); }
-
-    void _DrawLayout(int layout) { for (auto i : layouts[layout]) { _DrawElement(i); } }
+    string _MousePress()
+    {
+        Vector2 a = mouse;
+        for (auto a : layouts[layout])
+        {
+            if (a.type == 1)
+            {
+                if (c_x(a.pos.x) < mouse.x && mouse.x < c_x(a.pos.x + a.size.x))
+                {
+                    if (c_y(a.pos.y) < mouse.y && mouse.y < c_y(a.pos.y + a.size.y))
+                    {
+                        return a.name;
+                    }
+                }
+            }
+        }
+        return "";
+    }
+    void _DrawLayout() { for (auto i : layouts[layout]) { _DrawElement(i); } }
     void _DrawElement(element a)
     {
-        if (a.isButton)
+        if (a.type == 1)
         {
             Color tmp = a.c_backgound;
-            bool active = 0;
             if (c_x(a.pos.x) < mouse.x && mouse.x < c_x(a.pos.x + a.size.x))
             {
                 if (c_y(a.pos.y) < mouse.y && mouse.y < c_y(a.pos.y + a.size.y))
@@ -49,9 +79,16 @@ public:
             }
             DrawRectangleV({ 1.0f * c_x(a.pos.x), 1.0f * c_y(a.pos.y) }, { 1.0f * c_x(a.size.x), 1.0f * c_y(a.size.y) }, tmp);
         }
-        _DrawText(a.name.c_str(), a.pos.x, a.pos.y, a.size.y, a.c_text);
+        if (a.type == 0 || a.type == 1)
+        {
+            _DrawText(a.name.c_str(), a.pos.x, a.pos.y, a.size.y, a.c_text);
+        }
+        if (a.type == 2)
+        {
+            DrawTexturePro(a.texture, { 0,0,float(a.texture.width),float(a.texture.height) }, { 0,0,float(screenWidth),float(screenHeight) }, { 0,0 }, 0, WHITE);
+        }
     }
-    void _DrawText(const char* text, int posX, int posY, int fontSize, Color color)
+    void _DrawText(const char* text, float posX, float posY, float fontSize, Color color)
     {
         DrawText(text, c_x(posX), c_y(posY), c_y(fontSize), color);
     }
@@ -63,31 +100,54 @@ int main()
     user_interface ui;
     {
         ui.layouts.push_back({});
-        ui.layouts[0].push_back(element("ASU!", { 10,10 }, { 0,20 }, 0));
-        ui.layouts[0].push_back(element(" Play", { 10,30 }, { 20,5 }, 1));
-        ui.layouts[0].push_back(element(" Create", { 10,35 }, { 20,5 }, 1));
-        ui.layouts[0].push_back(element(" Exit", { 10,40 }, { 20,5 }, 1));
+        ui.layouts.push_back({});
+        ui.layouts[1].push_back(element("C:\\Users\\Rommm\\Desktop\\Untitled.png", { 0,0 }, { 0,0 }, 2));
+        ui.layouts[1].push_back(element("ASU!", { 10,10 }, { 0,20 }, 0));
+        ui.layouts[1].push_back(element(" Play", { 10,30 }, { 20,5 }, 1));
+        ui.layouts[1].push_back(element(" Create", { 10,35 }, { 20,5 }, 1));
+        ui.layouts[1].push_back(element(" Exit", { 10,40 }, { 20,5 }, 1));
+        ui.layouts.push_back({});
+        ui.layouts[2].push_back(element("C:\\Users\\Rommm\\Desktop\\Untitled.png", { 0,0 }, { 0,0 }, 2));
+        ui.layouts[2].push_back(element("ASU!", { 10,10 }, { 0,20 }, 0));
     }
-    while (!WindowShouldClose())
+    for (bool exit = 0; !WindowShouldClose() && !exit;)
     {
+        ui.mouse = GetMousePosition();
+        //====================================================================================================
         if (!IsWindowFullscreen())
         {
             SetWindowSize(ui.screenWidth, ui.screenHeight);
             ToggleFullscreen();
         }
-        BeginDrawing();
+        //====================================================================================================
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
         {
-            ui.mouse = GetMousePosition();
-            ClearBackground(BLACK);
-            if (IsMouseButtonPressed(1))
+            string action = ui._MousePress();
+            if (action != "")
             {
-
+                cout << action << endl;
+                if (action == " Play")
+                {
+                    ui.layout = 2;
+                }
+                if (action == " Exit")
+                {
+                    exit = 1;
+                }
             }
-            ui._DrawLayout(0);
-            DrawFPS(0, 0);
         }
+        for (; int k = GetKeyPressed();)
+        {
+            k -= '0';
+            if (0 <= k && k < ui.layouts.size()) { ui.layout = k; }
+        }
+        //====================================================================================================
+        BeginDrawing();
+        ClearBackground(BLACK);
+        ui._DrawLayout();
+        DrawFPS(0, 0);
         EndDrawing();
-
+        //====================================================================================================
     }
     CloseWindow();
     return 0;
